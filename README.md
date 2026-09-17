@@ -4,6 +4,14 @@ Unofficial Linux wrapper for https://linear.app, using a project-local Electron
 and its bundled Chromium instead of the system WebKitGTK. No system library
 replacement, launcher installation, or Tauri profile migration.
 
+Created as an Electron-based alternative to the Tauri-based `linear-desktop`,
+after encountering WebKitGTK freezes during sign-in on Linux.
+
+The official Linear icon is used unchanged to identify the service. This wrapper
+is not affiliated with or endorsed by Linear. The icon belongs to Linear and is
+not MIT-licensed; see [brand attribution](packaging/LINEAR-BRAND-NOTICE) and
+[Linear's brand guidelines](https://linear.app/brand).
+
 ## Run
 
 ```sh

@@ -1,9 +1,12 @@
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const { app, BrowserWindow, ipcMain, session, nativeImage } = require('electron');
 const http = require('node:http');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { WEB_PREFERENCES } = require('./policy.cjs');
 module.exports = async () => {
+  const icon = nativeImage.createFromPath(path.join(__dirname, '..', 'packaging', 'linear-electron.png'));
+  assert.equal(icon.isEmpty(), false, 'Official app icon must be included and readable');
+  assert.deepEqual(icon.getSize(), { width: 1024, height: 1024 });
   const timeout = setTimeout(() => { console.error('Self-test timed out'); app.exit(1); }, 30000);
   const server = http.createServer((_req, res) => {
     res.setHeader('Content-Type', 'text/html');

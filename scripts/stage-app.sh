@@ -11,5 +11,7 @@ install -dm755 "$destination/src"
 for file in main.cjs policy.cjs smoke.cjs self-test.cjs test-preload.cjs; do
   install -m644 "$LINEAR_ROOT/src/$file" "$destination/src/$file"
 done
+install -Dm644 "$LINEAR_ROOT/packaging/linear-electron.png" "$destination/packaging/linear-electron.png"
+install -Dm644 "$LINEAR_ROOT/packaging/LINEAR-BRAND-NOTICE" "$destination/packaging/LINEAR-BRAND-NOTICE"
 jq -n --arg version "$version" '{name:"linear-electron",version:$version,main:"src/main.cjs",linearInstalled:true,license:"MIT"}' > "$destination/package.json"
 chmod 644 "$destination/package.json"

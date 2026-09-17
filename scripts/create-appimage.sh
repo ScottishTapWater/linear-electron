@@ -26,7 +26,7 @@ stage=$(mktemp -d "$dist/.appimage-XXXXXX")
 app_dir="$stage/Linear.AppDir"
 mkdir -p "$app_dir/usr/lib"
 cp -a "$bundle" "$app_dir/usr/lib/linear-electron"
-install -m644 "$LINEAR_ROOT/packaging/linear-electron.desktop" "$LINEAR_ROOT/packaging/linear-electron.svg" "$app_dir/"
+install -m644 "$LINEAR_ROOT/packaging/linear-electron.desktop" "$LINEAR_ROOT/packaging/linear-electron.png" "$app_dir/"
 install -m755 "$LINEAR_ROOT/packaging/AppRun" "$app_dir/AppRun"
 ARCH=$target SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-0} "$tool" --appimage-extract-and-run \
   --runtime-file "$runtime" "$app_dir" "$dist/linear-electron-$target-v$version.AppImage"

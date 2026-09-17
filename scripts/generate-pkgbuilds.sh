@@ -39,7 +39,7 @@ emit_recipe() {
   printf '# Maintainer: James H <james@jamesmcmahon.co.uk>\npkgname=%s\npkgver=%s\npkgrel=1\n' "$name" "$version"
   printf "pkgdesc='Unofficial Linear desktop app (%s)'\n" "$name"
   printf "arch=('x86_64' 'aarch64')\nurl='https://github.com/hughesjs/linear-electron'\n"
-  if $binary; then printf "license=('MIT' 'LicenseRef-Electron-Chromium')\n"; else printf "license=('MIT')\n"; fi
+  if $binary; then printf "license=('MIT' 'LicenseRef-Linear-Brand' 'LicenseRef-Electron-Chromium')\n"; else printf "license=('MIT' 'LicenseRef-Linear-Brand')\n"; fi
   # Literal variables below are expanded later by makepkg, not this generator.
   # shellcheck disable=SC2016
   [[ $name == linear-electron ]] || printf 'provides=("linear-electron=$pkgver")\n'
@@ -119,7 +119,8 @@ PKG
   fi
   cat <<'PKG'
   install -Dm644 packaging/linear-electron.desktop "$pkgdir/usr/share/applications/linear-electron.desktop"
-  install -Dm644 packaging/linear-electron.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/linear-electron.svg"
+  install -Dm644 packaging/linear-electron.png "$pkgdir/usr/share/icons/hicolor/1024x1024/apps/linear-electron.png"
+  install -Dm644 packaging/LINEAR-BRAND-NOTICE "$pkgdir/usr/share/licenses/$pkgname/LINEAR-BRAND-NOTICE"
 }
 PKG
 }

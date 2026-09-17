@@ -24,7 +24,9 @@ for name in linear-electron linear-electron-git linear-electron-bin linear-elect
 done
 bash "$LINEAR_ROOT/scripts/stage-app.sh" "$test_dir/app" 1.2.3
 jq -e '.linearInstalled == true and .version == "1.2.3" and .dependencies == null' "$test_dir/app/package.json" >/dev/null
-[[ $(find "$test_dir/app" -mindepth 1 -maxdepth 1 | wc -l) == 2 ]]
+[[ $(find "$test_dir/app" -mindepth 1 -maxdepth 1 | wc -l) == 3 ]]
+cmp "$LINEAR_ROOT/packaging/linear-electron.png" "$test_dir/app/packaging/linear-electron.png"
+cmp "$LINEAR_ROOT/packaging/LINEAR-BRAND-NOTICE" "$test_dir/app/packaging/LINEAR-BRAND-NOTICE"
 mkdir "$test_dir/path with spaces"
 for file in "$test_dir"/*.tar.gz "$test_dir"/*.AppImage; do cp "$file" "$test_dir/path with spaces/"; done
 bash "$LINEAR_ROOT/scripts/generate-pkgbuilds.sh" 1.2.3 "$test_dir/path with spaces" --local-source

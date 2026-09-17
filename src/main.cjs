@@ -25,6 +25,7 @@ function createWindow(url = 'https://linear.app/login') {
   const win = new BrowserWindow({
     ...windowSize(readState()),
     title: 'Linear Electron',
+    icon: path.join(root, 'packaging', 'linear-electron.png'),
     autoHideMenuBar: true,
     webPreferences: { ...WEB_PREFERENCES },
   });
