@@ -2,3 +2,4 @@ node_modules/
 .profile/
 .smoke-profile/
 .artifacts/
+dist/

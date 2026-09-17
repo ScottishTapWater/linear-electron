@@ -1,0 +1,12 @@
+# CI-only profile; not installed by any package.
+abi <abi/4.0>,
+include <tunables/global>
+profile linear-electron-ci /home/runner/work/**/linear-electron flags=(unconfined) {
+  userns,
+}
+profile linear-electron-ci-mounted /tmp/.mount_*/usr/lib/linear-electron/linear-electron flags=(unconfined) {
+  userns,
+}
+profile linear-electron-ci-extracted /tmp/appimage_extracted_*/usr/lib/linear-electron/linear-electron flags=(unconfined) {
+  userns,
+}

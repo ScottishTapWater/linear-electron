@@ -1,0 +1,126 @@
+name: CD Pipeline
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'packaging/**'
+      - 'test/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/**'
+      - 'LICENSE'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+jobs:
+  version:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: tags
+        run: echo "count=$(git tag -l 'v[0-9]*' | wc -l)" >> "$GITHUB_OUTPUT"
+      - name: Calculate semantic version (sudo-mcp convention)
+        if: steps.tags.outputs.count != '0'
+        id: semver
+        uses: ietf-tools/semver-action@v1.11.0
+        with:
+          token: ${{ github.token }}
+          branch: main
+          majorList: major, breaking
+          minorList: minor, feat, feature
+          patchList: fix, bugfix, perf, refactor, test, tests, chore, patch, build, ci, docs, style
+          patchAll: true
+          noVersionBumpBehavior: patch
+      - id: version
+        env:
+          NEXT: ${{ steps.semver.outputs.nextStrict }}
+        run: echo "value=${NEXT:-0.1.0}" >> "$GITHUB_OUTPUT"
+  validate:
+    needs: version
+    uses: ./.github/workflows/ci-pipeline.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+  release:
+    needs: [version, validate]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: aur-*
+          path: aur-artifacts
+      - name: Collect only tested artifacts
+        run: |
+          cd dist
+          sha256sum linear-electron-*.tar.gz linear-electron-*.AppImage > SHA256SUMS
+          tar -czf aur-packages.tar.gz -C ../aur-artifacts .
+      - name: Publish once; retries verify rather than overwrite
+        run: |
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            mkdir existing-release
+            gh release download "v$VERSION" --pattern SHA256SUMS --dir existing-release
+            cmp dist/SHA256SUMS existing-release/SHA256SUMS
+          else
+            gh release create "v$VERSION" --target "$GITHUB_SHA" \
+              --title "Linear Electron v$VERSION" --generate-notes \
+              dist/linear-electron-*.tar.gz dist/linear-electron-*.AppImage \
+              dist/SHA256SUMS dist/aur-packages.tar.gz
+          fi
+  publish-aur:
+    needs: [version, release]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [linear-electron, linear-electron-git, linear-electron-bin, linear-electron-appimage]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: aur-${{ matrix.package }}
+          path: package
+      - name: Verify published assets before AUR update
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          mkdir verification
+          cd verification
+          base="https://github.com/hughesjs/linear-electron/releases/download/v$VERSION"
+          curl --fail --location --retry 3 "$base/SHA256SUMS" -o SHA256SUMS
+          while read -r _hash file; do
+            curl --fail --location --retry 3 "$base/$file" -o "$file"
+          done < SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - name: Publish AUR recipe
+        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
+        with:
+          pkgname: ${{ matrix.package }}
+          pkgbuild: package/PKGBUILD
+          assets: package/.SRCINFO
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: james@jamesmcmahon.co.uk
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update to v${{ needs.version.outputs.version }}

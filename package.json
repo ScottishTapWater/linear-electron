@@ -1,14 +1,20 @@
 {
-  "name": "linear-electron-local",
+  "name": "linear-electron",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Unofficial, local Electron wrapper for Linear",
   "main": "src/main.cjs",
   "packageManager": "pnpm@11.26.0",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/*.test.cjs",
-    "test:smoke": "electron . --smoke-test"
+    "test": "node --test test/*.test.cjs && bash scripts/test-packaging.sh",
+    "test:smoke": "electron . --smoke-test",
+    "bundle": "bash scripts/create-tarball.sh",
+    "package:recipes": "bash scripts/generate-pkgbuilds.sh",
+    "package:source": "bash scripts/create-source.sh",
+    "package:appimage": "bash scripts/create-appimage.sh",
+    "test:runtime": "electron . --self-test"
   },
   "devDependencies": { "electron": "44.4.1" }
 }

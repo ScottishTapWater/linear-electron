@@ -1,0 +1,112 @@
+name: CI Tests
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        default: '0.0.0'
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build and test AppImage (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            appimage_arch: x86_64
+            runner: ubuntu-24.04
+          - arch: arm64
+            appimage_arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    env:
+      VERSION: ${{ inputs.version || '0.0.0' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build dependencies (runner only)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq shellcheck libarchive-tools xvfb xauth libgtk-3-0t64 libnss3 libasound2t64 libgbm1 libfuse3-3 apparmor-utils
+          npm install --global pnpm@11.26.0
+          pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: shellcheck -x scripts/*.sh
+      - name: Build release artifacts
+        run: |
+          bash scripts/create-source.sh "$VERSION"
+          bash scripts/create-tarball.sh "$VERSION" '${{ matrix.arch }}'
+          bash scripts/create-appimage.sh '${{ matrix.arch }}'
+      - name: Test real AppImage, mounted and extracted
+        run: bash scripts/ci-appimage.sh "./dist/linear-electron-${{ matrix.appimage_arch }}-v$VERSION.AppImage"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.arch }}
+          path: |
+            dist/linear-electron-${{ matrix.arch }}-v*.tar.gz
+            dist/linear-electron-${{ matrix.appimage_arch }}-v*.AppImage
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: matrix.arch == 'x64'
+        with:
+          name: release-source
+          path: dist/linear-electron-${{ env.VERSION }}.tar.gz
+          if-no-files-found: error
+  arch-packages:
+    name: Arch ${{ matrix.variant }} (${{ matrix.arch }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+        variant: [linear-electron, linear-electron-git, linear-electron-bin, linear-electron-appimage]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    env:
+      VERSION: ${{ inputs.version || '0.0.0' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+      - name: Build, install and test in native disposable Arch container
+        env:
+          VARIANT: ${{ matrix.variant }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          image=archlinux:base-devel
+          if [[ "$ARCH" == arm64 ]]; then image=agners/archlinuxarm-arm64v8:latest; fi
+          # Same ARM image family used by sudo-mcp's run-on-arch action.
+          # Permit FUSE and Chromium's namespace sandbox in this secret-free
+          # container without granting all Docker privileged-mode capabilities.
+          docker run --rm --cap-add SYS_ADMIN --security-opt seccomp=unconfined \
+            --security-opt apparmor=unconfined --device /dev/fuse --shm-size=1g \
+            -e LINEAR_CI_CONTAINER=1 -v "$PWD:/work" -w /work \
+            "$image" bash scripts/ci-arch.sh "$VARIANT" "$VERSION"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: package-results-${{ matrix.variant }}-${{ matrix.arch }}
+          path: dist/test-results/
+      - uses: actions/upload-artifact@v4
+        if: matrix.arch == 'x64'
+        with:
+          name: aur-${{ matrix.variant }}
+          path: |
+            dist/aur/${{ matrix.variant }}/PKGBUILD
+            dist/aur/${{ matrix.variant }}/.SRCINFO
+          include-hidden-files: true
+          if-no-files-found: error

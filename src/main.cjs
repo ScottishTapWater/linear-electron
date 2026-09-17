@@ -3,11 +3,17 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { WEB_PREFERENCES, isLinearURL, isExternalURL, windowSize } = require('./policy.cjs');
 
+const selfTest = process.argv.includes('--self-test');
 const smoke = process.argv.includes('--smoke-test');
+const installed = require('../package.json').linearInstalled === true;
 const root = path.resolve(__dirname, '..');
 // No reuse of the Tauri app's cookies, credentials, or settings.
-app.setPath('userData', path.join(root, smoke ? '.smoke-profile' : '.profile'));
-app.setName('Linear Electron (local)');
+app.setPath('userData', (selfTest || smoke)
+  ? fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'linear-electron-test-'))
+  : installed
+  ? path.join(app.getPath('appData'), 'linear-electron')
+  : path.join(root, smoke ? '.smoke-profile' : '.profile'));
+app.setName('Linear Electron');
 app.enableSandbox();
 const statePath = path.join(app.getPath('userData'), 'window-state.json');
 
@@ -18,7 +24,7 @@ function readState() {
 function createWindow(url = 'https://linear.app/login') {
   const win = new BrowserWindow({
     ...windowSize(readState()),
-    title: 'Linear Electron (local)',
+    title: 'Linear Electron',
     autoHideMenuBar: true,
     webPreferences: { ...WEB_PREFERENCES },
   });
@@ -61,7 +67,16 @@ function createWindow(url = 'https://linear.app/login') {
   return win;
 }
 
-if (!app.requestSingleInstanceLock()) app.quit();
+if (process.argv.includes('--profile-path')) {
+  console.log(app.getPath('userData'));
+  app.exit(0);
+} else if (process.argv.includes('--app-version')) {
+  console.log(app.getVersion());
+  app.exit(0);
+} else if (selfTest) {
+  app.whenReady().then(() => require('./self-test.cjs')())
+    .then(() => app.exit(0)).catch(error => { console.error(error); app.exit(1); });
+} else if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => {
     const win = BrowserWindow.getAllWindows()[0];

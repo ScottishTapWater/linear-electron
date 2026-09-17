@@ -35,15 +35,18 @@ module.exports = async (win, root) => {
     if (!input) return false;
     input.focus(); return true;
   })()`);
+  await delay(1000);
+  await evaluate(`document.querySelector('input[type="email"]').focus()`);
   await wc.insertText('test@example.invalid');
   await delay(20000);
   const value = await evaluate(`document.querySelector('input[type="email"]')?.value`);
   if (value !== 'test@example.invalid') throw new Error('Email typing did not persist');
+  await evaluate(`document.querySelector('input[type="email"]').focus()`);
   await wc.insertText('x');
   await delay(1000);
   if (await evaluate(`document.querySelector('input[type="email"]')?.value`) !== 'test@example.invalidx')
     throw new Error('Email field stopped responding');
-  const dir = path.join(root, '.artifacts');
+  const dir = path.join(require('electron').app.getPath('userData'), 'artifacts');
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, 'email-smoke.png'), (await wc.capturePage()).toPNG());
   console.log('PASS: Continue with email, typing, and editing after 20 seconds; no email submitted');

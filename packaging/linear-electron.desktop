@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Linear (Electron)
+Comment=Unofficial Linear desktop app
+Exec=linear-electron
+Icon=linear-electron
+Terminal=false
+Categories=Office;ProjectManagement;
+StartupWMClass=linear-electron
