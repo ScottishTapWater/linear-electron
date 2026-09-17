@@ -73,6 +73,10 @@ jobs:
         with:
           pattern: aur-*
           path: aur-artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: rpm-spec
+          path: dist
       - name: Collect only tested artifacts
         run: |
           cd dist
@@ -88,7 +92,7 @@ jobs:
             gh release create "v$VERSION" --target "$GITHUB_SHA" \
               --title "Linear Electron v$VERSION" --generate-notes \
               dist/linear-electron-*.tar.gz dist/linear-electron-*.AppImage \
-              dist/SHA256SUMS dist/aur-packages.tar.gz
+              dist/linear-electron.spec dist/SHA256SUMS dist/aur-packages.tar.gz
           fi
   publish-aur:
     needs: [version, release]
@@ -124,3 +128,47 @@ jobs:
           commit_email: james@jamesmcmahon.co.uk
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: Update to v${{ needs.version.outputs.version }}
+  publish-copr:
+    needs: [version, release]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install COPR client
+        run: pipx install copr-cli
+      - name: Configure COPR client
+        env:
+          COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
+        run: |
+          test -n "$COPR_CONFIG"
+          mkdir -p ~/.config
+          printf '%s\n' "$COPR_CONFIG" > ~/.config/copr
+          chmod 600 ~/.config/copr
+      - name: Create or update COPR project
+        run: |
+          chroots=(
+            fedora-rawhide-x86_64 fedora-rawhide-aarch64
+            fedora-44-x86_64 fedora-44-aarch64
+            fedora-43-x86_64 fedora-43-aarch64
+          )
+          args=()
+          for chroot in "${chroots[@]}"; do args+=(--chroot "$chroot"); done
+          if copr-cli get hughesjs/linear-electron >/dev/null 2>&1; then
+            copr-cli modify hughesjs/linear-electron "${args[@]}" \
+              --description "Unofficial Electron wrapper for Linear" \
+              --instructions "sudo dnf copr enable hughesjs/linear-electron && sudo dnf install linear-electron"
+          else
+            copr-cli create linear-electron "${args[@]}" \
+              --description "Unofficial Electron wrapper for Linear" \
+              --instructions "sudo dnf copr enable hughesjs/linear-electron && sudo dnf install linear-electron"
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: rpm-spec
+      - name: Build and publish in COPR
+        run: |
+          copr-cli build hughesjs/linear-electron ./linear-electron.spec \
+            --chroot fedora-rawhide-x86_64 \
+            --chroot fedora-rawhide-aarch64 \
+            --chroot fedora-44-x86_64 \
+            --chroot fedora-44-aarch64 \
+            --chroot fedora-43-x86_64 \
+            --chroot fedora-43-aarch64

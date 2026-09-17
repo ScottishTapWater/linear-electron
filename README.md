@@ -71,6 +71,17 @@ and system Electron), `linear-electron-git` (Git main and system Electron),
 System variants depend on `electron44`; ARM64 can use AUR `electron44-bin`.
 All variants conflict with each other, not with the Tauri app.
 
+## Fedora / COPR
+
+The COPR package bundles the tested Electron runtime on x86_64 and ARM64:
+
+```sh
+sudo dnf copr enable hughesjs/linear-electron
+sudo dnf install linear-electron
+```
+
+Fedora 43, Fedora 44 and Rawhide are built and tested in native containers.
+
 For local candidate builds without publishing:
 
 ```sh

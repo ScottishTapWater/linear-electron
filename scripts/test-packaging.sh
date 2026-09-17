@@ -27,6 +27,10 @@ jq -e '.linearInstalled == true and .version == "1.2.3" and .dependencies == nul
 [[ $(find "$test_dir/app" -mindepth 1 -maxdepth 1 | wc -l) == 3 ]]
 cmp "$LINEAR_ROOT/packaging/linear-electron.png" "$test_dir/app/packaging/linear-electron.png"
 cmp "$LINEAR_ROOT/packaging/LINEAR-BRAND-NOTICE" "$test_dir/app/packaging/LINEAR-BRAND-NOTICE"
+bash "$LINEAR_ROOT/scripts/generate-specfile.sh" 1.2.3 > "$test_dir/linear-electron.spec"
+grep -q '^Version:[[:space:]]*1.2.3$' "$test_dir/linear-electron.spec"
+grep -q 'james@jamesmcmahon.co.uk' "$test_dir/linear-electron.spec"
+grep -q 'linear-electron-x64-v%{version}.tar.gz' "$test_dir/linear-electron.spec"
 mkdir "$test_dir/path with spaces"
 for file in "$test_dir"/*.tar.gz "$test_dir"/*.AppImage; do cp "$file" "$test_dir/path with spaces/"; done
 bash "$LINEAR_ROOT/scripts/generate-pkgbuilds.sh" 1.2.3 "$test_dir/path with spaces" --local-source

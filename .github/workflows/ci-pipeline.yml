@@ -114,3 +114,47 @@ jobs:
             dist/aur/${{ matrix.variant }}/.SRCINFO
           include-hidden-files: true
           if-no-files-found: error
+  rpm-packages:
+    name: Fedora ${{ matrix.fedora }} RPM (${{ matrix.arch }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+        fedora: ['43', '44', rawhide]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    env:
+      VERSION: ${{ inputs.version || '0.0.0' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+      - name: Build, install and test in native disposable Fedora container
+        env:
+          FEDORA: ${{ matrix.fedora }}
+        run: |
+          sudo apparmor_parser -r packaging/linear-electron-ci.apparmor
+          docker run --rm --cap-add SYS_ADMIN --security-opt seccomp=unconfined \
+            --security-opt apparmor=unconfined --shm-size=1g \
+            -e LINEAR_CI_CONTAINER=1 -e FEDORA_VERSION="$FEDORA" \
+            -v "$PWD:/work" -w /work "fedora:$FEDORA" \
+            bash scripts/ci-rpm.sh "$VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm-results-fedora-${{ matrix.fedora }}-${{ matrix.arch }}
+          path: dist/rpm-results/
+          if-no-files-found: error
+      - name: Generate publishable RPM spec
+        if: matrix.arch == 'x64' && matrix.fedora == '44'
+        run: bash scripts/generate-specfile.sh "$VERSION" > linear-electron.spec
+      - uses: actions/upload-artifact@v4
+        if: matrix.arch == 'x64' && matrix.fedora == '44'
+        with:
+          name: rpm-spec
+          path: linear-electron.spec
+          if-no-files-found: error

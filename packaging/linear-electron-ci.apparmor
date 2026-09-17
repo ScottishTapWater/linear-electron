@@ -10,3 +10,6 @@ profile linear-electron-ci-mounted /tmp/.mount_*/usr/lib/linear-electron/linear-
 profile linear-electron-ci-extracted /tmp/appimage_extracted_*/usr/lib/linear-electron/linear-electron flags=(unconfined) {
   userns,
 }
+profile linear-electron-ci-rpm /opt/linear-electron/linear-electron flags=(unconfined) {
+  userns,
+}
