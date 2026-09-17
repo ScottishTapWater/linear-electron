@@ -89,6 +89,10 @@ jobs:
         run: |
           image=archlinux:base-devel
           if [[ "$ARCH" == arm64 ]]; then image=agners/archlinuxarm-arm64v8:latest; fi
+          # Docker's unconfined profile does not override Ubuntu's separate
+          # unprivileged-userns restriction. Allow the AppImage executables on
+          # this runner just as in the standalone AppImage test job.
+          sudo apparmor_parser -r packaging/linear-electron-ci.apparmor
           # Same ARM image family used by sudo-mcp's run-on-arch action.
           # Permit FUSE and Chromium's namespace sandbox in this secret-free
           # container without granting all Docker privileged-mode capabilities.
